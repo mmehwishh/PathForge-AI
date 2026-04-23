@@ -1,0 +1,68 @@
+🟢 Phase 1: The Request (Frontend to Backend)
+
+1.  User Input: A student opens the React Dashboard. They select:
+      - Topic: "Data Science"
+      - Level: "Beginner"
+      - Time Commitment: "5 hours/week"
+2.  API Call: React sends this data as a JSON object to the ASP.NET Core Web
+    API.
+3.  Authentication: The .NET API verifies the user’s identity (using SQL Server
+    to check their profile) and then forwards the request to the ML Service
+    (FastAPI).
+
+🟡 Phase 2: The Intelligence (The Python ML Service)
+
+This is where your current focus (Feature Engineering) happens.
+
+1.  The Entry Point: FastAPI receives the raw JSON: {"topic": "Data Science",
+    "level": "Beginner", "hours": 5}
+2.  Preprocessing (The Critical Step):
+      - The DataPreprocessor (the script you are working on) kicks in.
+      - Label Encoding: "Beginner" is converted to 0.
+      - One-Hot Encoding: "Data Science" is converted into a vector like
+        [0, 1, 0, 0].
+      - Scaling: The number 5 is scaled to a value between 0 and 1.
+3.  The Recommender Engine:
+      - The cleaned numerical data is fed into a Scikit-Learn Model (e.g., a
+        Random Forest or KNN).
+      - The model predicts a "Path Template" ID.
+4.  Vector Search (ChromaDB):
+      - The service looks into ChromaDB (Vector Store) to find the actual
+        learning content (YouTube links, articles, docs) that matches the "Data
+        Science" embedding.
+5.  The Output: Python returns a structured list of steps to the .NET API.
+
+🔵 Phase 3: The Orchestration (.NET Backend)
+
+1.  Data Enrichment: The .NET API receives the list of steps from Python.
+2.  Persistence: It saves this new "Learning Path" into SQL Server so the user
+    can see it again when they log in later.
+3.  Response: It sends the final package back to the Frontend.
+
+🔴 Phase 4: Visualization (React Frontend)
+
+1.  Rendering: The Path Visualizer component receives the JSON.
+2.  User Experience: It uses Tailwind CSS to turn that data into a beautiful,
+    interactive timeline where the user can click "Complete" on each step.
+
+🛠 Summary of the "Data Transformation"
+
+To understand your learning path, watch how the data changes:
+
+| Stage                   | Data Format             | Tech                    |
+| :---------------------- | :---------------------- | :---------------------- |
+| **Input**               | `"Beginner"`            | React                   |
+| **Feature Engineering** | `0` (Label Encoded)     | **Python (Your focus)** |
+| **Prediction**          | `Path_ID_402`           | Scikit-Learn            |
+| **Content Retrieval**   | `[Link1, Link2, Link3]` | ChromaDB                |
+| **Display**             | UI Timeline             | React                   |
+
+🚀 Why this flow is powerful:
+
+By separating the ML Service from the Web API, you can update your AI model or
+change your encoding logic without ever breaking the user's login or the
+dashboard. This is how real-world AI companies (like Netflix or Coursera) build
+their systems.
+
+Does this flow help you see why the "Preprocessing" script is the most important
+part? Without it, the AI is "blind" to the words the user types.
