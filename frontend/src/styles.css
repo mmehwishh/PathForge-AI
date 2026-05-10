@@ -177,6 +177,46 @@ h1 {
   background: rgba(255, 255, 255, 0.95);
 }
 
+.available-roadmaps {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.3rem;
+}
+
+.available-header p,
+.topic-load-error {
+  margin: -0.3rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.roadmap-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.roadmap-tabs button {
+  border: 1px solid rgba(70, 99, 72, 0.2);
+  border-radius: 999px;
+  padding: 0.5rem 0.75rem;
+  color: var(--moss-dark);
+  background: rgba(255, 255, 255, 0.62);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.roadmap-tabs button:hover,
+.roadmap-tabs button.active {
+  border-color: var(--moss);
+  color: #fffaf0;
+  background: linear-gradient(135deg, var(--moss-dark), var(--moss));
+}
+
 .empty-state {
   display: grid;
   min-height: 28rem;
@@ -239,6 +279,16 @@ h1 {
 
 .phase-strip {
   margin-bottom: 2rem;
+}
+
+.limited-roadmap-note {
+  margin: -0.7rem 0 1.5rem;
+  border-left: 4px solid var(--gold);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  color: var(--moss-dark);
+  background: rgba(224, 169, 63, 0.16);
+  font-weight: 700;
 }
 
 .timeline {

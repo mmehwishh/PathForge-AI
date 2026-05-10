@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { generateLearningPath } from './api';
+import React, { useEffect, useState } from 'react';
+import { generateLearningPath, getAvailableTopics } from './api';
 import PathVisualizer from './components/PathVisualizer';
 
 const initialForm = {
@@ -13,6 +13,36 @@ export default function App() {
   const [learningPath, setLearningPath] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [availableTopics, setAvailableTopics] = useState([]);
+  const [topicLoadError, setTopicLoadError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAvailableTopics()
+      .then((topics) => {
+        if (isMounted) {
+          setAvailableTopics(topics);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setTopicLoadError(err.message);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  function selectTopic(topic) {
+    setForm((current) => ({
+      ...current,
+      preferred_topic: topic,
+    }));
+    setError(null);
+  }
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -112,12 +142,7 @@ export default function App() {
                     <button
                       key={topic}
                       type="button"
-                      onClick={() =>
-                        setForm((current) => ({
-                          ...current,
-                          preferred_topic: topic,
-                        }))
-                      }
+                      onClick={() => selectTopic(topic)}
                     >
                       {topic}
                     </button>
@@ -127,6 +152,30 @@ export default function App() {
             )}
           </div>
         )}
+
+        <section className="available-roadmaps">
+          <div className="available-header">
+            <span className="eyebrow">Available roadmaps</span>
+            <p>Choose a supported topic from the dataset.</p>
+          </div>
+
+          {topicLoadError ? (
+            <p className="topic-load-error">{topicLoadError}</p>
+          ) : (
+            <div className="roadmap-tabs">
+              {availableTopics.map((topic) => (
+                <button
+                  key={topic}
+                  type="button"
+                  className={form.preferred_topic === topic ? 'active' : ''}
+                  onClick={() => selectTopic(topic)}
+                >
+                  {topic}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
 
       <PathVisualizer learningPath={learningPath} />

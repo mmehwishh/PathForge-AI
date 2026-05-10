@@ -131,19 +131,6 @@ class UnsupportedTopicError(ValueError):
         )
 
 
-class InsufficientCoursesError(ValueError):
-    """Raised when a topic exists but has too few courses for a reliable roadmap."""
-
-    def __init__(self, topic: str, minimum_required: int, available_count: int):
-        self.topic = topic
-        self.minimum_required = minimum_required
-        self.available_count = available_count
-        super().__init__(
-            f"Not enough courses for '{topic}'. Found {available_count}; "
-            f"minimum required is {minimum_required}."
-        )
-
-
 class EmbeddingRecommender:
     """
     Embedding-based course recommender using ChromaDB and Sentence Transformers.
@@ -343,18 +330,14 @@ class EmbeddingRecommender:
         """Return user-selectable subjects available in the processed dataset."""
         return sorted(str(s) for s in self.courses_df["subject"].dropna().unique())
 
-    def validate_topic_support(self, topic: str, minimum_courses: int = 3) -> str:
+    def validate_topic_support(self, topic: str) -> str:
         """
-        Resolve a topic and ensure enough matching courses exist before building a roadmap.
+        Resolve a topic before building a roadmap.
         This prevents ChromaDB from returning unrelated courses when the topic is unsupported.
         """
         subject = self._resolve_subject(topic)
         if subject is None:
             raise UnsupportedTopicError(topic, self.available_topics())
-
-        matching_count = int((self.courses_df["subject"] == subject).sum())
-        if matching_count < minimum_courses:
-            raise InsufficientCoursesError(subject, minimum_courses, matching_count)
 
         return subject
 

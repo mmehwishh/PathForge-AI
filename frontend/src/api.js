@@ -20,3 +20,14 @@ export async function generateLearningPath(payload) {
 
   return data;
 }
+
+export async function getAvailableTopics() {
+  const response = await fetch(`${API_BASE_URL}/api/learning-path/topics`);
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.detail || 'Failed to load available roadmaps.');
+  }
+
+  return data.topics || [];
+}

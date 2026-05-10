@@ -30,6 +30,12 @@ export default function PathVisualizer({ learningPath }) {
         ))}
       </div>
 
+      {learningPath.courses.length < 3 && (
+        <div className="limited-roadmap-note">
+          This topic has limited data, so we are showing the courses currently available.
+        </div>
+      )}
+
       <div className="timeline">
         {learningPath.courses.map((course, index) => (
           <article className="timeline-item" key={`${course.title}-${index}`}>

@@ -82,6 +82,25 @@ public sealed class MLServiceClient
             "ML service returned an empty response.");
     }
 
+    public async Task<TopicsResponse> GetTopicsAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await _http.GetAsync("topics", cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await ReadErrorDetailAsync(response, cancellationToken);
+            throw new MLServiceException(response.StatusCode, error.Message, error.Code, error.AvailableTopics);
+        }
+
+        var payload = await response.Content.ReadFromJsonAsync<TopicsResponse>(
+            JsonOptions,
+            cancellationToken);
+
+        return payload ?? throw new MLServiceException(
+            response.StatusCode,
+            "ML service returned an empty response.");
+    }
+
     private static async Task<MLServiceErrorDetails> ReadErrorDetailAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -141,6 +160,15 @@ public sealed class RecommendationResponse
 
     [JsonPropertyName("recommendations")]
     public List<RecommendationDto> Recommendations { get; set; } = new();
+}
+
+public sealed class TopicsResponse
+{
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("topics")]
+    public List<string> Topics { get; set; } = new();
 }
 
 public sealed class LearningPathDto

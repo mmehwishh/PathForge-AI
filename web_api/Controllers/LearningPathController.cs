@@ -14,6 +14,32 @@ public sealed class LearningPathController : ControllerBase
         _mlServiceClient = mlServiceClient;
     }
 
+    [HttpGet("topics")]
+    public async Task<ActionResult<TopicsResponse>> Topics(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _mlServiceClient.GetTopicsAsync(cancellationToken);
+            return Ok(response);
+        }
+        catch (MLServiceException ex)
+        {
+            return StatusCode((int)ex.StatusCode, new
+            {
+                detail = ex.Message,
+                code = ex.Code,
+                available_topics = ex.AvailableTopics
+            });
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                detail = $"ML service is unavailable: {ex.Message}"
+            });
+        }
+    }
+
     [HttpPost("generate")]
     public async Task<ActionResult<LearningPathResponse>> Generate(
         [FromBody] LearningPathRequest request,
