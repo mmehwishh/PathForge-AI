@@ -6,11 +6,19 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 try:
-    from src.engine.embedding_recommender import EmbeddingRecommender
+    from src.engine.embedding_recommender import (
+        EmbeddingRecommender,
+        InsufficientCoursesError,
+        UnsupportedTopicError,
+    )
 except ModuleNotFoundError as exc:
     if exc.name != "src":
         raise
-    from ml_service.src.engine.embedding_recommender import EmbeddingRecommender
+    from ml_service.src.engine.embedding_recommender import (
+        EmbeddingRecommender,
+        InsufficientCoursesError,
+        UnsupportedTopicError,
+    )
 
 
 logging.basicConfig(level=logging.INFO)
@@ -127,6 +135,30 @@ async def get_learning_path(data: UserInput) -> LearningPathResponse:
             level=data.experience_level.strip(),
             hours_per_week=data.study_hours,
         )
+    except UnsupportedTopicError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "unsupported_topic",
+                "message": (
+                    f"We do not have enough data to build a reliable "
+                    f"{exc.topic} roadmap yet."
+                ),
+                "available_topics": exc.available_topics,
+            },
+        ) from exc
+    except InsufficientCoursesError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "insufficient_courses",
+                "message": (
+                    f"We found only {exc.available_count} courses for {exc.topic}. "
+                    f"At least {exc.minimum_required} are required for a reliable roadmap."
+                ),
+                "available_topics": recommender.available_topics(),
+            },
+        ) from exc
     except Exception as exc:
         logger.exception("Failed to generate learning path")
         raise HTTPException(
@@ -158,6 +190,29 @@ async def get_recommendations(data: RecommendationInput) -> RecommendationRespon
             hours_per_week=data.study_hours,
             top_k=data.top_k,
         )
+    except UnsupportedTopicError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "unsupported_topic",
+                "message": (
+                    f"We do not have enough data to recommend {exc.topic} courses yet."
+                ),
+                "available_topics": exc.available_topics,
+            },
+        ) from exc
+    except InsufficientCoursesError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "insufficient_courses",
+                "message": (
+                    f"We found only {exc.available_count} courses for {exc.topic}. "
+                    f"At least {exc.minimum_required} are required."
+                ),
+                "available_topics": recommender.available_topics(),
+            },
+        ) from exc
     except Exception as exc:
         logger.exception("Failed to generate recommendations")
         raise HTTPException(

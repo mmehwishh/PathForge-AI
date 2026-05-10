@@ -42,8 +42,8 @@ public sealed class MLServiceClient
 
         if (!response.IsSuccessStatusCode)
         {
-            var detail = await ReadErrorDetailAsync(response, cancellationToken);
-            throw new MLServiceException(response.StatusCode, detail);
+            var error = await ReadErrorDetailAsync(response, cancellationToken);
+            throw new MLServiceException(response.StatusCode, error.Message, error.Code, error.AvailableTopics);
         }
 
         var payload = await response.Content.ReadFromJsonAsync<LearningPathResponse>(
@@ -69,8 +69,8 @@ public sealed class MLServiceClient
 
         if (!response.IsSuccessStatusCode)
         {
-            var detail = await ReadErrorDetailAsync(response, cancellationToken);
-            throw new MLServiceException(response.StatusCode, detail);
+            var error = await ReadErrorDetailAsync(response, cancellationToken);
+            throw new MLServiceException(response.StatusCode, error.Message, error.Code, error.AvailableTopics);
         }
 
         var payload = await response.Content.ReadFromJsonAsync<RecommendationResponse>(
@@ -82,24 +82,27 @@ public sealed class MLServiceClient
             "ML service returned an empty response.");
     }
 
-    private static async Task<string> ReadErrorDetailAsync(
+    private static async Task<MLServiceErrorDetails> ReadErrorDetailAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(body))
         {
-            return $"ML service failed with status {(int)response.StatusCode} {response.ReasonPhrase}.";
+            return new MLServiceErrorDetails
+            {
+                Message = $"ML service failed with status {(int)response.StatusCode} {response.ReasonPhrase}."
+            };
         }
 
         try
         {
             var error = JsonSerializer.Deserialize<FastApiError>(body, JsonOptions);
-            return string.IsNullOrWhiteSpace(error?.Detail) ? body : error.Detail;
+            return error?.ToErrorDetails() ?? new MLServiceErrorDetails { Message = body };
         }
         catch (JsonException)
         {
-            return body;
+            return new MLServiceErrorDetails { Message = body };
         }
     }
 }
@@ -229,17 +232,80 @@ public sealed class RecommendationDto
 
 public sealed class MLServiceException : Exception
 {
-    public MLServiceException(HttpStatusCode statusCode, string message)
+    public MLServiceException(
+        HttpStatusCode statusCode,
+        string message,
+        string? code = null,
+        List<string>? availableTopics = null)
         : base(message)
     {
         StatusCode = statusCode;
+        Code = code;
+        AvailableTopics = availableTopics ?? new List<string>();
     }
 
     public HttpStatusCode StatusCode { get; }
+
+    public string? Code { get; }
+
+    public List<string> AvailableTopics { get; }
 }
 
 internal sealed class FastApiError
 {
     [JsonPropertyName("detail")]
-    public string Detail { get; set; } = string.Empty;
+    public JsonElement Detail { get; set; }
+
+    public MLServiceErrorDetails ToErrorDetails()
+    {
+        if (Detail.ValueKind == JsonValueKind.String)
+        {
+            return new MLServiceErrorDetails
+            {
+                Message = Detail.GetString() ?? "ML service request failed."
+            };
+        }
+
+        if (Detail.ValueKind != JsonValueKind.Object)
+        {
+            return new MLServiceErrorDetails { Message = Detail.GetRawText() };
+        }
+
+        var details = new MLServiceErrorDetails();
+
+        if (Detail.TryGetProperty("code", out var code) &&
+            code.ValueKind == JsonValueKind.String)
+        {
+            details.Code = code.GetString();
+        }
+
+        if (Detail.TryGetProperty("message", out var message) &&
+            message.ValueKind == JsonValueKind.String)
+        {
+            details.Message = message.GetString() ?? details.Message;
+        }
+
+        if (Detail.TryGetProperty("available_topics", out var topics) &&
+            topics.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var topic in topics.EnumerateArray())
+            {
+                if (topic.ValueKind == JsonValueKind.String)
+                {
+                    details.AvailableTopics.Add(topic.GetString()!);
+                }
+            }
+        }
+
+        return details;
+    }
+}
+
+internal sealed class MLServiceErrorDetails
+{
+    public string Message { get; set; } = "ML service request failed.";
+
+    public string? Code { get; set; }
+
+    public List<string> AvailableTopics { get; } = new();
 }

@@ -120,6 +120,30 @@ PHASE_KEYWORDS = {
 FORCE_REBUILD = False
 
 
+class UnsupportedTopicError(ValueError):
+    """Raised when the dataset cannot support a requested roadmap topic."""
+
+    def __init__(self, topic: str, available_topics: List[str]):
+        self.topic = topic
+        self.available_topics = available_topics
+        super().__init__(
+            f"Unsupported topic '{topic}'. Choose one of: {', '.join(available_topics)}"
+        )
+
+
+class InsufficientCoursesError(ValueError):
+    """Raised when a topic exists but has too few courses for a reliable roadmap."""
+
+    def __init__(self, topic: str, minimum_required: int, available_count: int):
+        self.topic = topic
+        self.minimum_required = minimum_required
+        self.available_count = available_count
+        super().__init__(
+            f"Not enough courses for '{topic}'. Found {available_count}; "
+            f"minimum required is {minimum_required}."
+        )
+
+
 class EmbeddingRecommender:
     """
     Embedding-based course recommender using ChromaDB and Sentence Transformers.
@@ -315,6 +339,25 @@ class EmbeddingRecommender:
         )
         return None
 
+    def available_topics(self) -> List[str]:
+        """Return user-selectable subjects available in the processed dataset."""
+        return sorted(str(s) for s in self.courses_df["subject"].dropna().unique())
+
+    def validate_topic_support(self, topic: str, minimum_courses: int = 3) -> str:
+        """
+        Resolve a topic and ensure enough matching courses exist before building a roadmap.
+        This prevents ChromaDB from returning unrelated courses when the topic is unsupported.
+        """
+        subject = self._resolve_subject(topic)
+        if subject is None:
+            raise UnsupportedTopicError(topic, self.available_topics())
+
+        matching_count = int((self.courses_df["subject"] == subject).sum())
+        if matching_count < minimum_courses:
+            raise InsufficientCoursesError(subject, minimum_courses, matching_count)
+
+        return subject
+
     def _phase_for_course(self, topic: str, title: str, fallback_stage: str) -> str:
         subject        = self._resolve_subject(topic) or topic
         normalized     = str(title or "").lower()
@@ -343,7 +386,7 @@ class EmbeddingRecommender:
         """
         safe_hours     = max(int(hours_per_week or 1), 1)
         query          = f"{topic} course tutorial learning path"
-        subject_filter = self._resolve_subject(topic)
+        subject_filter = self.validate_topic_support(topic)
 
         # ── DEBUG: log what filter is being applied ───────────────────────────
         self.logger.info(
@@ -351,7 +394,7 @@ class EmbeddingRecommender:
             topic, subject_filter, level,
         )
 
-        where_clause = {"subject": subject_filter} if subject_filter else None
+        where_clause = {"subject": subject_filter}
 
         # Fetch a large candidate pool so post-filtering has room to work
         n_candidates = min(top_k * 10, self.collection.count())

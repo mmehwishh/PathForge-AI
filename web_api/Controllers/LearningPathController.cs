@@ -41,7 +41,12 @@ public sealed class LearningPathController : ControllerBase
         }
         catch (MLServiceException ex)
         {
-            return StatusCode((int)ex.StatusCode, new { detail = ex.Message });
+            return StatusCode((int)ex.StatusCode, new
+            {
+                detail = ex.Message,
+                code = ex.Code,
+                available_topics = ex.AvailableTopics
+            });
         }
         catch (HttpRequestException ex)
         {
@@ -79,7 +84,12 @@ public sealed class LearningPathController : ControllerBase
         }
         catch (MLServiceException ex)
         {
-            return StatusCode((int)ex.StatusCode, new { detail = ex.Message });
+            return StatusCode((int)ex.StatusCode, new
+            {
+                detail = ex.Message,
+                code = ex.Code,
+                available_topics = ex.AvailableTopics
+            });
         }
         catch (HttpRequestException ex)
         {
